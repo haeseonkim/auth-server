@@ -1,9 +1,13 @@
 package com.abab.auth.service;
 
+import com.abab.auth.model.LogEntry;
+import com.abab.auth.model.LogEntryDTO;
 import com.abab.auth.model.User;
 import com.abab.auth.model.UserWebDTO;
+import com.abab.auth.repository.LogRepository;
 import com.abab.auth.repository.UserRepository;
 import com.abab.auth.util.JwtTokenUtil;
+import com.abab.auth.util.LogType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -12,12 +16,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,6 +46,9 @@ public class UserServiceTest {
 
     @Mock
     private JwtTokenUtil jwtTokenUtil;
+
+    @Mock
+    private LogRepository logRepository;
 
     @InjectMocks
     private UserService userService;
@@ -59,6 +73,7 @@ public class UserServiceTest {
                     .password("encodedPassword")
                     .userName(userName)
                     .createdAt(Instant.now().getEpochSecond())
+                    .role("ROLE_USER")
                     .build();
 
             when(userRepository.save(any(User.class))).thenReturn(userToSave);
@@ -76,7 +91,7 @@ public class UserServiceTest {
             assertEquals(email, capturedUser.getEmail(), "Captured user's email should match");
             assertEquals("encodedPassword", capturedUser.getPassword(), "Captured user's password should be encoded");
             assertEquals(userName, capturedUser.getUserName(), "Captured user's username should match");
-
+            assertEquals("ROLE_USER", capturedUser.getRole(), "Captured user's role should be ROLE_USER");
         }
 
         @Test
@@ -102,18 +117,19 @@ public class UserServiceTest {
     }
 
     @Nested
-    @DisplayName("LoginTests")
-    class LoginTests {
+    @DisplayName("SignInTests")
+    class SignInTests {
 
         @Test
         @DisplayName("올바른 이메일과 비밀번호 => 로그인 성공")
-        void testLoginSuccess() {
+        void testSignInSuccess() {
             // Given
             User user = User.builder()
                     .email(email)
                     .password("encodedPassword")
                     .userName(userName)
                     .passwordSetAt(Instant.now().getEpochSecond())
+                    .role("ROLE_USER")
                     .build();
 
             Date issuedAt = new Date();
@@ -121,12 +137,12 @@ public class UserServiceTest {
 
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(password, user.getPassword())).thenReturn(true);
-            when(jwtTokenUtil.generateToken(email)).thenReturn("testToken");
+            when(jwtTokenUtil.generateToken(email, "ROLE_USER")).thenReturn("testToken");
             when(jwtTokenUtil.getIssuedAtDateFromToken("testToken")).thenReturn(issuedAt);
             when(jwtTokenUtil.getExpirationDateFromToken("testToken")).thenReturn(expiration);
 
             // When
-            UserWebDTO.LoginWebResponse response = userService.login(email, password);
+            UserWebDTO.LoginWebResponse response = userService.signIn(email, password);
 
             // Then
             assertNotNull(response);
@@ -136,27 +152,28 @@ public class UserServiceTest {
 
         @Test
         @DisplayName("이메일이 존재하지 않을 때 => throw ResponseStatusException")
-        void testLoginEmailNotFound() {
+        void testSignInEmailNotFound() {
             // Given
             when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
             // When & Then
             ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-                userService.login(email, password);
+                userService.signIn(email, password);
             });
 
             assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
-            assertEquals("이메일 또는 비밀번호가 잘못되었습니다.", exception.getReason());
+            assertEquals("email or password incorrect", exception.getReason());
         }
 
         @Test
         @DisplayName("비밀번호 불일치 => throw ResponseStatusException")
-        void testLoginPasswordMismatch() {
+        void testSignInPasswordMismatch() {
             // Given
             User user = User.builder()
                     .email(email)
                     .password("encodedPassword")
                     .userName(userName)
+                    .role("ROLE_USER")
                     .build();
 
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
@@ -164,22 +181,23 @@ public class UserServiceTest {
 
             // When & Then
             ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-                userService.login(email, password);
+                userService.signIn(email, password);
             });
 
             assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
-            assertEquals("이메일 또는 비밀번호가 잘못되었습니다.", exception.getReason());
+            assertEquals("email or password incorrect", exception.getReason());
         }
 
         @Test
         @DisplayName("비밀번호가 만료되었을 때 => throw ResponseStatusException")
-        void testLoginPasswordExpired() {
+        void testSignInPasswordExpired() {
             // Given
             User user = User.builder()
                     .email(email)
                     .password("encodedPassword")
                     .userName(userName)
                     .passwordSetAt(Instant.now().minusSeconds(90 * 24 * 60 * 60 + 1).getEpochSecond())
+                    .role("ROLE_USER")
                     .build();
 
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
@@ -187,11 +205,11 @@ public class UserServiceTest {
 
             // When & Then
             ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-                userService.login(email, password);
+                userService.signIn(email, password);
             });
 
             assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
-            assertEquals("비밀번호 설정 후 90일이 지나 로그인이 불가능합니다.", exception.getReason());
+            assertEquals("password expired", exception.getReason());
         }
     }
 
@@ -229,5 +247,65 @@ public class UserServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("GetUserLogsTests")
+    class GetUserLogsTests {
 
+        @Test
+        @WithMockUser(roles = "ADMIN")
+        @DisplayName("관리자 권한으로 로그 조회 성공")
+        void testGetUserLogsSuccessWithAdminRole() {
+            // Given
+            Long userId = 1L;
+            LogType logType = LogType.LOGIN_SUCCESS;
+            Instant startDate = Instant.now().minusSeconds(3600);
+            Instant endDate = Instant.now();
+            int page = 0;
+            int size = 10;
+
+            Pageable pageable = PageRequest.of(page, size);
+            List<LogEntry> logEntries = Collections.singletonList(new LogEntry());
+            Page<LogEntry> logPage = new PageImpl<>(logEntries, pageable, logEntries.size());
+
+            when(logRepository.findLogsByUserIdAndLogTypeAndTimestampBetween(userId, logType, startDate, endDate, pageable))
+                    .thenReturn(logPage);
+
+
+            // When
+            Page<LogEntryDTO> result = userService.getUserLogs(userId, logType, startDate, endDate, page, size);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(1, result.getTotalElements());
+            verify(logRepository, times(1)).findLogsByUserIdAndLogTypeAndTimestampBetween(userId, logType, startDate, endDate, pageable);
+        }
+
+        @Test
+        @WithMockUser(roles = "ADMIN")
+        @DisplayName("관리자 권한으로 로그 조회 시 로그가 없을 때 => 빈 페이지 반환")
+        void testGetUserLogsNoLogs() {
+            // Given
+            Long userId = 1L;
+            LogType logType = LogType.LOGIN_SUCCESS;
+            Instant startDate = Instant.now().minusSeconds(3600);
+            Instant endDate = Instant.now();
+            int page = 0;
+            int size = 10;
+
+            Pageable pageable = PageRequest.of(page, size);
+            Page<LogEntry> emptyLogPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
+
+            when(logRepository.findLogsByUserIdAndLogTypeAndTimestampBetween(userId, logType, startDate, endDate, pageable))
+                    .thenReturn(emptyLogPage);
+
+            // When
+            Page<LogEntryDTO> result = userService.getUserLogs(userId, logType, startDate, endDate, page, size);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(0, result.getTotalElements());
+            verify(logRepository, times(1)).findLogsByUserIdAndLogTypeAndTimestampBetween(userId, logType, startDate, endDate, pageable);
+        }
+    }
 }
+

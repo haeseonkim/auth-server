@@ -1,6 +1,7 @@
 package com.abab.auth.config;
 
 import com.abab.auth.service.UserService;
+import com.abab.auth.util.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private final JwtTokenUtil jwtTokenUtil;
     private final ObjectProvider<UserService> userServiceProvider;
 
     @Bean
@@ -23,7 +25,8 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)  // CSRF 보호 비활성화
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/v1/auth/users/signup", "/api/v1/auth/users/login", "/h2-console/**").permitAll()  // 회원가입, 로그인, h2 콘솔은 인증 없이 접근 가능
+                        .requestMatchers("/api/v1/auth/users/signup", "/api/v1/auth/users/signin", "/h2-console/**").permitAll()  // 회원가입, 로그인, h2 콘솔은 인증 없이 접근 가능
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")  // ADMIN 권한만 접근 가능
                         .anyRequest().authenticated()  // 그 외 모든 요청은 인증 필요
                 )
                 .headers(headers -> headers
@@ -36,7 +39,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(userServiceProvider.getObject());
+        return new JwtAuthenticationFilter(jwtTokenUtil, userServiceProvider.getObject());
     }
 
     @Bean

@@ -30,5 +30,8 @@ public class User {
     private long createdAt;
 
     @Column(nullable = false)
+    private String role; // 예: ROLE_USER, ROLE_ADMIN
+
+    @Column(nullable = false)
     private long passwordSetAt;
 }

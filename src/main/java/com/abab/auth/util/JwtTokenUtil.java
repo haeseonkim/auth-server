@@ -17,26 +17,43 @@ public class JwtTokenUtil {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateToken(String subject) {
+    public String generateToken(String subject, String role) {
+        // 주제(subject), 발급일, 만료일, 서명을 포함한 JWT 토큰 생성
         return Jwts.builder()
                 .setSubject(subject)
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(secretKey, SignatureAlgorithm.HS512)
                 .compact();
     }
 
+    public String getRoleFromToken(String token) {
+        // 토큰에서 역할 정보 추출
+        Claims claims = getAllClaimsFromToken(token);
+        return claims.get("role", String.class);
+    }
+
+    public String getUsernameFromToken(String token) {
+        // 토큰에서 사용자 이름(주제) 추출
+        Claims claims = getAllClaimsFromToken(token);
+        return claims.getSubject();
+    }
+
     public Date getIssuedAtDateFromToken(String token) {
+        // 토큰에서 발급일 추출
         Claims claims = getAllClaimsFromToken(token);
         return claims.getIssuedAt();
     }
 
     public Date getExpirationDateFromToken(String token) {
+        // 토큰에서 만료일 추출
         Claims claims = getAllClaimsFromToken(token);
         return claims.getExpiration();
     }
 
     private Claims getAllClaimsFromToken(String token) {
+        // 토큰을 파싱하여 모든 클레임(claims) 추출
         return Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
