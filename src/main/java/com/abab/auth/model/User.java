@@ -1,4 +1,4 @@
-package com.abab.auth.entity;
+package com.abab.auth.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
