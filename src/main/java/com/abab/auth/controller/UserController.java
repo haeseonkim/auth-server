@@ -1,5 +1,7 @@
 package com.abab.auth.controller;
 
+import com.abab.auth.global.ResponseHelper;
+import com.abab.auth.global.ResponseWrapper;
 import com.abab.auth.model.UserWebDTO.*;
 import com.abab.auth.service.UserService;
 import jakarta.validation.Valid;
@@ -18,8 +20,8 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/users/signup")
-    public ResponseEntity<GetWebResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
+    public ResponseEntity<ResponseWrapper<GetWebResponse>> signUp(@Valid @RequestBody UserSignUpRequest request) {
         GetWebResponse response = userService.signUp(request.getEmail(), request.getPassword(), request.getUserName());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseHelper.createResponse(response, "success", HttpStatus.CREATED);
     }
 }
