@@ -1,7 +1,9 @@
 package com.abab.auth.service;
 
 import com.abab.auth.model.User;
+import com.abab.auth.model.UserWebDTO;
 import com.abab.auth.repository.UserRepository;
+import com.abab.auth.util.JwtTokenUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -11,10 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.Date;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,7 +31,10 @@ public class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private BCryptPasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtTokenUtil jwtTokenUtil;
 
     @InjectMocks
     private UserService userService;
@@ -92,6 +98,100 @@ public class UserServiceTest {
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode(), "Should return BAD_REQUEST status");
             verify(userRepository, times(1)).findByEmail(email);
             verify(userRepository, never()).save(any(User.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("LoginTests")
+    class LoginTests {
+
+        @Test
+        @DisplayName("올바른 이메일과 비밀번호 => 로그인 성공")
+        void testLoginSuccess() {
+            // Given
+            User user = User.builder()
+                    .email(email)
+                    .password("encodedPassword")
+                    .userName(userName)
+                    .passwordSetAt(Instant.now().getEpochSecond())
+                    .build();
+
+            Date issuedAt = new Date();
+            Date expiration = new Date(issuedAt.getTime() + 3600 * 1000);
+
+            when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches(password, user.getPassword())).thenReturn(true);
+            when(jwtTokenUtil.generateToken(email)).thenReturn("testToken");
+            when(jwtTokenUtil.getIssuedAtDateFromToken("testToken")).thenReturn(issuedAt);
+            when(jwtTokenUtil.getExpirationDateFromToken("testToken")).thenReturn(expiration);
+
+            // When
+            UserWebDTO.LoginWebResponse response = userService.login(email, password);
+
+            // Then
+            assertNotNull(response);
+            assertEquals("testToken", response.getToken(), "The token should match the generated token");
+            verify(userRepository, times(1)).findByEmail(email);
+        }
+
+        @Test
+        @DisplayName("이메일이 존재하지 않을 때 => throw ResponseStatusException")
+        void testLoginEmailNotFound() {
+            // Given
+            when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+            // When & Then
+            ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+                userService.login(email, password);
+            });
+
+            assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
+            assertEquals("이메일 또는 비밀번호가 잘못되었습니다.", exception.getReason());
+        }
+
+        @Test
+        @DisplayName("비밀번호 불일치 => throw ResponseStatusException")
+        void testLoginPasswordMismatch() {
+            // Given
+            User user = User.builder()
+                    .email(email)
+                    .password("encodedPassword")
+                    .userName(userName)
+                    .build();
+
+            when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches(password, user.getPassword())).thenReturn(false);
+
+            // When & Then
+            ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+                userService.login(email, password);
+            });
+
+            assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
+            assertEquals("이메일 또는 비밀번호가 잘못되었습니다.", exception.getReason());
+        }
+
+        @Test
+        @DisplayName("비밀번호가 만료되었을 때 => throw ResponseStatusException")
+        void testLoginPasswordExpired() {
+            // Given
+            User user = User.builder()
+                    .email(email)
+                    .password("encodedPassword")
+                    .userName(userName)
+                    .passwordSetAt(Instant.now().minusSeconds(90 * 24 * 60 * 60 + 1).getEpochSecond())
+                    .build();
+
+            when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches(password, user.getPassword())).thenReturn(true);
+
+            // When & Then
+            ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+                userService.login(email, password);
+            });
+
+            assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
+            assertEquals("비밀번호 설정 후 90일이 지나 로그인이 불가능합니다.", exception.getReason());
         }
     }
 }

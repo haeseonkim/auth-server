@@ -28,4 +28,7 @@ public class User {
 
     @Column(nullable = false)
     private long createdAt;
+
+    @Column(nullable = false)
+    private long passwordSetAt;
 }

@@ -24,4 +24,10 @@ public class UserController {
         GetWebResponse response = userService.signUp(request.getEmail(), request.getPassword(), request.getUserName());
         return ResponseHelper.createResponse(response, "success", HttpStatus.CREATED);
     }
+
+    @PostMapping("/users/login")
+    public ResponseEntity<ResponseWrapper<LoginWebResponse>> login(@Valid @RequestBody UserLoginRequest request) {
+        LoginWebResponse response = userService.login(request.getEmail(), request.getPassword());
+        return ResponseHelper.createResponse(response, "success", HttpStatus.OK);
+    }
 }

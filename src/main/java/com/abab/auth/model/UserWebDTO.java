@@ -21,6 +21,14 @@ public class UserWebDTO {
     }
 
     @Getter
+    @Builder
+    public static class LoginWebResponse {
+        private String token;
+        private long iat;
+        private long exp;
+    }
+
+    @Getter
     public static class UserSignUpRequest {
         @NotBlank(message = "Email is mandatory")
         @Email(message = "Email should be valid")
@@ -32,5 +40,15 @@ public class UserWebDTO {
 
         @NotBlank(message = "Username is mandatory")
         private String userName;
+    }
+
+    @Getter
+    public static class UserLoginRequest {
+        @NotBlank(message = "Email is mandatory")
+        @Email(message = "Email should be valid")
+        private String email;
+
+        @NotBlank(message = "Password is mandatory")
+        private String password;
     }
 }

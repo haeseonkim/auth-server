@@ -16,3 +16,5 @@ spring:
     hibernate:
       ddl-auto: create-drop
     defer-datasource-initialization: true
+jwt:
+  secret: ThisIsATestSecretKeyForJWTTokenThatIsLongEnoughToMeetTheRequirements1234567890
