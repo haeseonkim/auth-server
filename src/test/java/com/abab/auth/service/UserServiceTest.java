@@ -194,4 +194,40 @@ public class UserServiceTest {
             assertEquals("비밀번호 설정 후 90일이 지나 로그인이 불가능합니다.", exception.getReason());
         }
     }
+
+    @Nested
+    @DisplayName("SignOutTests")
+    class SignOutTests {
+
+        @Test
+        @DisplayName("유효한 토큰으로 로그아웃 => 성공")
+        void testSignOutSuccess() {
+            // Given
+            String token = "testToken";
+            userService.getValidTokens().add(token);  // 유효한 토큰으로 추가
+
+            // When
+            userService.signOut("Bearer " + token);
+
+            // Then
+            assertFalse(userService.getValidTokens().contains(token), "The token should be removed after logout");
+        }
+
+        @Test
+        @DisplayName("유효하지 않은 토큰으로 로그아웃 => throw ResponseStatusException 401")
+        void testSignOutInvalidToken() {
+            // Given
+            String token = "invalidToken";
+
+            // When & Then
+            ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+                userService.signOut("Bearer " + token);
+            });
+
+            assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode(), "Should return UNAUTHORIZED status");
+            assertEquals("invalid token", exception.getReason(), "Exception reason should be 'invalid token'");
+        }
+    }
+
+
 }

@@ -8,10 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
 @RestController
@@ -29,5 +26,11 @@ public class UserController {
     public ResponseEntity<ResponseWrapper<LoginWebResponse>> login(@Valid @RequestBody UserLoginRequest request) {
         LoginWebResponse response = userService.login(request.getEmail(), request.getPassword());
         return ResponseHelper.createResponse(response, "success", HttpStatus.OK);
+    }
+
+    @PostMapping("/users/signout")
+    public ResponseEntity<ResponseWrapper<Object>> signOut(@RequestHeader("Authorization") String token) {
+        userService.signOut(token);
+        return ResponseHelper.createResponse(null, "Logout successful", HttpStatus.OK);
     }
 }
