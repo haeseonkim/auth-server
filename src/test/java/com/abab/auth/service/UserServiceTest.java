@@ -115,6 +115,7 @@ public class UserServiceTest {
         void testSignInSuccess() {
             // Given
             User user = User.builder()
+                    .id(1L)
                     .email(email)
                     .password("encodedPassword")
                     .userName(userName)
@@ -127,7 +128,7 @@ public class UserServiceTest {
 
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(password, user.getPassword())).thenReturn(true);
-            when(jwtTokenUtil.generateToken(email, "ROLE_USER")).thenReturn("testToken");
+            when(jwtTokenUtil.generateToken(user.getId(), "ROLE_USER")).thenReturn("testToken");
             when(jwtTokenUtil.getIssuedAtDateFromToken("testToken")).thenReturn(issuedAt);
             when(jwtTokenUtil.getExpirationDateFromToken("testToken")).thenReturn(expiration);
 

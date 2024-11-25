@@ -1,5 +1,6 @@
 package com.abab.auth.config;
 
+import com.abab.auth.service.AdminService;
 import com.abab.auth.service.UserService;
 import com.abab.auth.util.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     private final JwtTokenUtil jwtTokenUtil;
     private final ObjectProvider<UserService> userServiceProvider;
+    private final ObjectProvider<AdminService> adminServiceProvider;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,7 +41,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenUtil, userServiceProvider.getObject());
+        return new JwtAuthenticationFilter(jwtTokenUtil, userServiceProvider.getObject(), adminServiceProvider.getObject());
     }
 
     @Bean

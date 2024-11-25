@@ -71,7 +71,7 @@ public class UserService implements UserDetailsService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "password expired");
         }
 
-        String token = jwtTokenUtil.generateToken(user.getEmail(), user.getRole());
+        String token = jwtTokenUtil.generateToken(user.getId(), user.getRole());
         validTokens.add(token);
         Date issuedAt = jwtTokenUtil.getIssuedAtDateFromToken(token);
         Date expiration = jwtTokenUtil.getExpirationDateFromToken(token);

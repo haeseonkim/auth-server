@@ -30,4 +30,11 @@ public class AdminController {
         Page<LogEntryDTO> userLogs = adminService.getUserLogs(userId, logType, startDate, endDate, page, size);
         return ResponseEntity.ok(userLogs);
     }
+
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PostMapping("/users/{userId}/expire-tokens")
+    public ResponseEntity<String> expireUserTokens(@PathVariable Long userId) {
+        adminService.expireUserTokens(userId);
+        return ResponseEntity.ok("success");
+    }
 }

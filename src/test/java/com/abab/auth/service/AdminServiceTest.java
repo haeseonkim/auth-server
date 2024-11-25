@@ -2,17 +2,12 @@ package com.abab.auth.service;
 
 import com.abab.auth.model.LogEntry;
 import com.abab.auth.model.LogEntryDTO;
-import com.abab.auth.model.User;
-import com.abab.auth.model.UserWebDTO;
 import com.abab.auth.repository.LogRepository;
-import com.abab.auth.repository.UserRepository;
-import com.abab.auth.util.JwtTokenUtil;
 import com.abab.auth.util.LogType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,19 +15,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -103,5 +92,58 @@ public class AdminServiceTest {
             verify(logRepository, times(1)).findLogsByUserIdAndLogTypeAndTimestampBetween(userId, logType, startDate, endDate, pageable);
         }
     }
+
+    @Nested
+    @DisplayName("ExpireUserTokensTests")
+    class ExpireUserTokensTests {
+
+        @Test
+        @DisplayName("유저의 모든 토큰 만료 시 성공 로그 생성")
+        void testExpireUserTokensSuccess() {
+            // Given
+            Long userId = 1L;
+
+            // When
+            adminService.expireUserTokens(userId);
+
+            // Then
+            verify(logRepository, times(1)).save(any(LogEntry.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("IsTokenValidTests")
+    class IsTokenValidTests {
+
+        @Test
+        @DisplayName("만료되지 않은 토큰 => 유효")
+        void testIsTokenValid() {
+            // Given
+            Long userId = 1L;
+            Instant issueTime = Instant.now();
+
+            // When
+            boolean isValid = adminService.isTokenValid(userId, issueTime);
+
+            // Then
+            assertTrue(isValid, "Not expired token must be valid");
+        }
+
+        @Test
+        @DisplayName("만료된 토큰 => 유효하지 않음")
+        void testIsTokenInvalid() {
+            // Given
+            Long userId = 1L;
+            adminService.expireUserTokens(userId);
+            Instant expiredTime = Instant.now().minusSeconds(60);
+
+            // When
+            boolean isValid = adminService.isTokenValid(userId, expiredTime);
+
+            // Then
+            assertFalse(isValid, "Expired token must be invalid");
+        }
+    }
+
 }
 

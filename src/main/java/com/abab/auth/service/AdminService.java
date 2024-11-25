@@ -14,12 +14,14 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AdminService {
     private final LogRepository logRepository;
+    private final ConcurrentHashMap<Long, Instant> userTokenExpiryMap = new ConcurrentHashMap<>();
 
     public Page<LogEntryDTO> getUserLogs(Long userId, LogType logType, Instant startDate, Instant endDate, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -39,5 +41,31 @@ public class AdminService {
                 .toList();
 
         return new PageImpl<>(logEntryDTOs, pageable, logPage.getTotalElements());
+    }
+
+    public void expireUserTokens(Long userId) {
+        // 현재 시점을 만료 시점으로 설정
+        Instant currentExpiryTime = Instant.now();
+        userTokenExpiryMap.put(userId, currentExpiryTime);
+        log.info("User {} tokens expired at {}", userId, currentExpiryTime);
+
+        // 로그 기록 저장
+        saveLog(userId, "All tokens for user " + userId + " have been expired by admin.");
+    }
+
+    public boolean isTokenValid(Long userId, Instant tokenIssueTime) {
+        // 만료 시점 이후에 발급된 토큰만 유효
+        Instant expiryTime = userTokenExpiryMap.get(userId);
+        return expiryTime == null || tokenIssueTime.isAfter(expiryTime);
+    }
+
+    private void saveLog(Long userId, String message) {
+        LogEntry logEntry = LogEntry.builder()
+                .userId(userId)
+                .logType(LogType.TOKEN_EXPIRATION)
+                .timestamp(Instant.now())
+                .message(message)
+                .build();
+        logRepository.save(logEntry);
     }
 }

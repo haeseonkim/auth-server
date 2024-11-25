@@ -1,5 +1,6 @@
 package com.abab.auth.config;
 
+import com.abab.auth.service.AdminService;
 import com.abab.auth.service.UserService;
 import com.abab.auth.util.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
@@ -15,12 +16,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collections;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenUtil jwtTokenUtil;
     private final UserService userService;
+    private final AdminService adminService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -37,6 +40,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (!userService.getValidTokens().contains(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("{\"error\": \"invalid token\"}");
+            return;
+        }
+
+        // 토큰 발급 시점 추출
+        Instant tokenIssueTime = jwtTokenUtil.getIssuedAtDateFromToken(token).toInstant();
+        Long userId = jwtTokenUtil.getUserIdFromToken(token);
+
+        // 토큰이 만료된 것인지 AdminService를 통해 확인
+        if (!adminService.isTokenValid(userId, tokenIssueTime)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("{\"error\": \"expired token\"}");
             return;
         }
 

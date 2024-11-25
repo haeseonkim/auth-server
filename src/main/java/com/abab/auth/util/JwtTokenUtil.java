@@ -17,10 +17,10 @@ public class JwtTokenUtil {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateToken(String subject, String role) {
-        // 주제(subject), 발급일, 만료일, 서명을 포함한 JWT 토큰 생성
+    public String generateToken(Long userId, String role) {
+        // 주제(subject)를 User ID로 설정하여 JWT 토큰 생성
         return Jwts.builder()
-                .setSubject(subject)
+                .setSubject(String.valueOf(userId))  // User ID를 주제로 설정
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
@@ -38,6 +38,11 @@ public class JwtTokenUtil {
         // 토큰에서 사용자 이름(주제) 추출
         Claims claims = getAllClaimsFromToken(token);
         return claims.getSubject();
+    }
+
+    public Long getUserIdFromToken(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        return Long.parseLong(claims.getSubject()); // subject를 userId로 사용
     }
 
     public Date getIssuedAtDateFromToken(String token) {
