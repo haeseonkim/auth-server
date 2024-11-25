@@ -1,7 +1,7 @@
 package com.abab.auth.controller;
 
 import com.abab.auth.model.LogEntryDTO;
-import com.abab.auth.service.UserService;
+import com.abab.auth.service.AdminService;
 import com.abab.auth.util.LogType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,7 +15,7 @@ import java.time.Instant;
 @RestController
 @RequestMapping("/api/v1/auth/admin")
 public class AdminController {
-    private final UserService userService;
+    private final AdminService adminService;
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/users/{userId}/logs")
@@ -27,7 +27,7 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        Page<LogEntryDTO> userLogs = userService.getUserLogs(userId, logType, startDate, endDate, page, size);
+        Page<LogEntryDTO> userLogs = adminService.getUserLogs(userId, logType, startDate, endDate, page, size);
         return ResponseEntity.ok(userLogs);
     }
 }

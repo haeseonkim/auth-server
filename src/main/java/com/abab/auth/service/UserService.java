@@ -1,7 +1,6 @@
 package com.abab.auth.service;
 
 import com.abab.auth.model.LogEntry;
-import com.abab.auth.model.LogEntryDTO;
 import com.abab.auth.repository.LogRepository;
 import com.abab.auth.model.User;
 import com.abab.auth.model.UserMapper;
@@ -9,16 +8,10 @@ import com.abab.auth.model.UserWebDTO.*;
 import com.abab.auth.repository.UserRepository;
 import com.abab.auth.util.JwtTokenUtil;
 import com.abab.auth.util.LogType;
-import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -30,10 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -104,26 +95,6 @@ public class UserService implements UserDetailsService {
         validTokens.remove(token);  // 로그아웃 시 유효한 토큰에서 제거
         log.info("로그아웃 성공: {}", token);
         saveLog(null, LogType.LOGOUT, "로그아웃 성공 - 토큰 만료 처리: " + token);
-    }
-
-    public Page<LogEntryDTO> getUserLogs(Long userId, LogType logType, Instant startDate, Instant endDate, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<LogEntry> logPage = logRepository.findLogsByUserIdAndLogTypeAndTimestampBetween(userId, logType, startDate, endDate, pageable);
-
-        log.info("Log entries size: {}", logPage.getTotalElements());  // 로그 개수 출력
-        logPage.getContent().forEach(logEntry -> log.info("Log entry: {}", logEntry));
-
-        // LogEntry를 LogEntryDTO로 변환
-        List<LogEntryDTO> logEntryDTOs = logPage.getContent().stream()
-                .map(logEntry -> new LogEntryDTO(
-                        logEntry.getUserId(),
-                        logEntry.getLogType(),
-                        logEntry.getTimestamp(),
-                        logEntry.getMessage()
-                ))
-                .toList();
-
-        return new PageImpl<>(logEntryDTOs, pageable, logPage.getTotalElements());
     }
 
     @Override
